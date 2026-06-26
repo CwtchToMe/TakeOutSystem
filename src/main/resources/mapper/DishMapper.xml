@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.takeout.product.DishMapper">
+
+    <resultMap id="menuResultMap" type="com.takeout.product.MenuCategoryVO">
+        <id     column="category_id"   property="id"/>
+        <result column="category_name" property="name"/>
+        <result column="category_sort" property="sort"/>
+        <collection property="dishes" ofType="com.takeout.product.MenuDishVO">
+            <id     column="dish_id"          property="id"/>
+            <result column="dish_name"        property="name"/>
+            <result column="dish_image_url"   property="imageUrl"/>
+            <result column="dish_description" property="description"/>
+            <result column="dish_price"       property="price"/>
+            <result column="dish_stock"       property="stock"/>
+            <result column="dish_sales"       property="sales"/>
+            <result column="dish_sort"        property="sort"/>
+        </collection>
+    </resultMap>
+
+    <select id="selectMenu" resultMap="menuResultMap">
+        SELECT
+            c.id AS category_id, c.name AS category_name, c.sort AS category_sort,
+            d.id AS dish_id, d.name AS dish_name, d.image_url AS dish_image_url,
+            d.description AS dish_description, d.price AS dish_price,
+            d.stock AS dish_stock, d.sales AS dish_sales, d.sort AS dish_sort
+        FROM t_category c
+        LEFT JOIN t_dish d
+            ON d.category_id = c.id AND d.merchant_id = c.merchant_id
+            AND d.status = 1 AND d.deleted = 0
+        WHERE c.merchant_id = #{merchantId} AND c.status = 1
+        ORDER BY c.sort ASC, d.sort ASC
+    </select>
+
+</mapper>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.takeout.merchant.MerchantMapper">
+
+    <resultMap id="nearbyResultMap" type="com.takeout.merchant.MerchantSimpleVO">
+        <id     column="id"              property="id"/>
+        <result column="name"            property="name"/>
+        <result column="logo_url"        property="logoUrl"/>
+        <result column="score"           property="score"/>
+        <result column="sales_count"     property="salesCount"/>
+        <result column="min_order_price" property="minOrderPrice"/>
+        <result column="delivery_fee"    property="deliveryFee"/>
+        <result column="delivery_time"   property="deliveryTime"/>
+        <result column="status"          property="status"/>
+        <result column="distance"        property="distance"/>
+    </resultMap>
+
+    <select id="selectNearby" resultMap="nearbyResultMap">
+        SELECT
+            id, name, logo_url, score, sales_count,
+            min_order_price, delivery_fee, delivery_time, status,
+            ROUND(ST_Distance_Sphere(POINT(longitude, latitude), POINT(#{longitude}, #{latitude})), 0) AS distance
+        FROM t_merchant
+        WHERE
+            deleted = 0 AND status = 1
+            AND ST_Distance_Sphere(POINT(longitude, latitude), POINT(#{longitude}, #{latitude})) &lt;= #{radius}
+        ORDER BY distance ASC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countNearby" resultType="long">
+        SELECT COUNT(*) FROM t_merchant
+        WHERE
+            deleted = 0 AND status = 1
+            AND ST_Distance_Sphere(POINT(longitude, latitude), POINT(#{longitude}, #{latitude})) &lt;= #{radius}
+    </select>
+
+</mapper>

@@ -1,0 +1,33 @@
+# 编译输出
+target/
+
+# 前端依赖和构建产物
+node_modules/
+dist/
+
+# 日志
+logs/
+*.log
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# Redis 持久化文件
+dump.rdb
+
+# Claude 配置（本地专用）
+.claude/
+
+# 本地配置（含密码，不上传）
+src/main/resources/application-local.yml
+src/main/resources/application-local.properties
+
+# 截图
+screenshots/
+*.png
