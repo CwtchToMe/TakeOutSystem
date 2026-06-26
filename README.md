@@ -4,6 +4,38 @@ Spring Boot 3.2.5 单体应用（Java 17），MySQL + Redis，含消费者 H5、
 
 ---
 
+## 零、环境要求与首次安装
+
+### 前置软件
+
+| 软件 | 版本要求 | 说明 |
+|---|---|---|
+| JDK | 17+ | https://adoptium.net |
+| Maven | 3.8+ | https://maven.apache.org |
+| MySQL | 8.x | 默认账号 root / 密码 root |
+| Redis | 6.x+ | 默认端口 6379 |
+| Node.js | 18+ | https://nodejs.org |
+
+### 首次初始化（clone 后只需做一次）
+
+```powershell
+# 1. 初始化数据库（确保 MySQL 已启动）
+mysql -uroot -proot < init/sql/init.sql
+
+# 2. 编译后端
+mvn package -DskipTests
+
+# 3. 安装前端依赖
+cd h5 && npm install
+cd ../merchant-web && npm install
+cd ../admin-web && npm install
+cd ..
+```
+
+完成后按「二、快速启动」正常启动即可。
+
+---
+
 ## 一、服务一览
 
 | # | 服务 | 端口 | 检查 | 启动方式 |
