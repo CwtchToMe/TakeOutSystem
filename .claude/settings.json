@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem c:\\\\workD\\\\code\\\\TakeoutSystem -Directory)",
+      "Bash(Select-Object -ExpandProperty Name)",
+      "Bash(Sort-Object)",
+      "PowerShell(docker version --format \"Client: {{.Client.Version}}, Server: {{.Server.Version}}\" 2>&1)",
+      "PowerShell(java -version 2>&1)",
+      "PowerShell(mvn -version 2>&1)",
+      "PowerShell(node --version 2>&1)",
+      "PowerShell(npm --version 2>&1)",
+      "PowerShell(netstat -ano)",
+      "PowerShell(Get-Command java -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Command node -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Command docker -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell(Get-Content *)",
+      "PowerShell(Get-Process *)",
+      "PowerShell(Get-WmiObject Win32_Process)",
+      "Bash(/c/workD/software/redis/redis-cli.exe get *)",
+      "Bash(*)",
+      "PowerShell(*)",
+      "Skill(check)",
+      "Skill(check:*)",
+      "Edit(/.claude/skills/verify-flows/**)",
+      "Edit(/.claude/skills/audit-ui/**)",
+      "Edit(/.claude/skills/db-reset/**)",
+      "WebFetch(domain:unsplash.com)",
+      "Edit(/.claude/skills/collab-rules/**)"
+    ],
+    "defaultMode": "bypassPermissions",
+    "additionalDirectories": [
+      "c:\\workD\\software"
+    ]
+  }
+}
