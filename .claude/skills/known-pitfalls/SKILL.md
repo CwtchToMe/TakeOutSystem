@@ -146,6 +146,21 @@ SQL 中 `NULL = NULL` 永远为 false，selectOne 找不到记录，每次都 in
 
 ---
 
+### 坑9b：BusinessException → HTTP 始终 200，body.code 才是真实码
+
+**症状：** 测试角色隔离时 catch 块不执行，误判为"验证通过"。
+
+**原因：** `GlobalExceptionHandler.handleBusiness()` 没有 `@ResponseStatus`，HTTP 永远 200。
+403/404 只在 JSON body `{"code": 403}` 里，只有 `AuthInterceptor` 会真正返回 HTTP 401。
+
+**正确测试方式：**
+```powershell
+$resp = Invoke-RestMethod "$base/admin/user/list" -Headers $userH
+if ($resp.code -eq 403) { "OK" } else { "FAIL: $($resp.code)" }
+```
+
+---
+
 ### 坑9：异常类型必须是 BusinessException
 
 **症状：** 业务错误返回 HTTP 500，而不是预期的 4xx。

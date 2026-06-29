@@ -76,19 +76,19 @@ Write-Host "Cancel: status=$((Invoke-RestMethod "$base/order/$($order2.data.orde
 # ── 7. 管理员：禁用用户→验证拒绝→恢复 ───────────────────
 Invoke-RestMethod -Method Put "$base/admin/user/3/status" -Headers $adminH `
   -ContentType "application/json" -Body '{"status":0}' | Out-Null
-try {
-  Invoke-RestMethod -Method Post "$base/auth/login" -ContentType "application/json" `
-    -Body '{"phone":"13800000003","code":"123456"}' | Out-Null
-  Write-Host "FAIL: disabled user should not login"
-} catch { Write-Host "Disabled user blocked: OK ($($_.Exception.Response.StatusCode.Value__))" }
+# HTTP 永远 200（坑9b），用 body.code 判断
+$disabledResp = Invoke-RestMethod -Method Post "$base/auth/login" -ContentType "application/json" `
+  -Body '{"phone":"13800000003","code":"123456"}'
+if ($disabledResp.code -eq 403) { Write-Host "Disabled user blocked: OK (body code=403)" }
+else { Write-Host "FAIL: disabled user should not login, got code=$($disabledResp.code)" }
 Invoke-RestMethod -Method Put "$base/admin/user/3/status" -Headers $adminH `
   -ContentType "application/json" -Body '{"status":1}' | Out-Null
 
-# ── 8. 角色隔离（普通用户访问 admin → 403）────────────────
-try {
-  Invoke-RestMethod "$base/admin/user/list" -Headers $userH | Out-Null
-  Write-Host "FAIL: should be 403"
-} catch { Write-Host "Role isolation OK ($($_.Exception.Response.StatusCode.Value__))" }
+# ── 8. 角色隔离（普通用户访问 admin → body code=403）────────
+# GlobalExceptionHandler 不设 @ResponseStatus，HTTP 永远 200，用 body.code 判断
+$isoResp = Invoke-RestMethod "$base/admin/user/list" -Headers $userH
+if ($isoResp.code -eq 403) { Write-Host "Role isolation OK (body code=403)" }
+else { Write-Host "FAIL: expected body code=403, got $($isoResp.code)" }
 
 # ── 9. 前端可达性 ─────────────────────────────────────────
 foreach ($port in 3001, 3002, 3003) {
@@ -114,7 +114,7 @@ After accept: status=3
 After ready: status=5
 After complete: status=6
 Cancel: status=7
-Disabled user blocked: OK (403)
+Disabled user blocked: OK (body code=403)
 Role isolation OK (403)
 Port 3001: UP
 Port 3002: UP

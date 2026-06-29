@@ -26,7 +26,9 @@ public class MockPayController {
 
     private static final String KEY_ORDER = "mock:pay:order:";
     private static final String KEY_PNO   = "mock:pay:pno:";
-    private static final long   TTL_SEC   = 900L; // 15分钟
+    private static final String KEY_DONE  = "mock:pay:done:";
+    private static final long   TTL_SEC   = 900L;  // 15分钟
+    private static final long   TTL_DONE  = 3600L; // 已处理标记保留1h，覆盖支付平台重试窗口
 
     @Operation(summary = "创建支付单", description = "幂等接口，同一订单重复调用返回相同 paymentNo")
     @PostMapping("/create")
@@ -61,10 +63,16 @@ public class MockPayController {
         return Result.success(new PayStatusVO(paymentNo, order.getActualPrice().toPlainString()));
     }
 
-    @Operation(summary = "模拟支付回调", description = "模拟第三方回调，成功则将订单状态推进为待接单")
+    @Operation(summary = "模拟支付回调", description = "模拟第三方回调，成功则将订单状态推进为待接单；接口幂等，重复回调直接返回成功")
     @PostMapping("/callback")
     public Result<Void> callback(@Valid @RequestBody PayCallbackRequest req) {
         Long userId = UserContext.requireUserId();
+
+        // 幂等层1：已处理标记（覆盖支付平台在1h内的所有重试）
+        if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(KEY_DONE + req.paymentNo()))) {
+            return Result.success();
+        }
+
         String orderNo = stringRedisTemplate.opsForValue().get(KEY_PNO + req.paymentNo());
         if (orderNo == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "支付单不存在或已过期（超过15分钟）");
@@ -72,7 +80,17 @@ public class MockPayController {
         if (!Boolean.TRUE.equals(req.success())) {
             throw new BusinessException(ResultCode.BUSINESS_ERROR, "支付失败");
         }
+
+        // 幂等层2：DB 级检查，防止并发重试同时通过层1（订单已支付则直接返回）
+        Order order = orderService.getByOrderNoInternal(orderNo);
+        if (order.getStatus() != 1) {
+            return Result.success();
+        }
+
         orderService.payOrder(userId, orderNo);
+
+        // 写入已处理标记，之后1h内重复回调走层1快速返回
+        stringRedisTemplate.opsForValue().set(KEY_DONE + req.paymentNo(), "1", TTL_DONE, TimeUnit.SECONDS);
         stringRedisTemplate.delete(KEY_ORDER + orderNo);
         stringRedisTemplate.delete(KEY_PNO + req.paymentNo());
         return Result.success();

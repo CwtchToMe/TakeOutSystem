@@ -1,6 +1,5 @@
 {
   "permissions": {
-    "defaultMode": "bypassPermissions",
     "allow": [
       "Bash(grep -v \"^$\")",
       "Bash(python3 -c ' *)",
@@ -46,7 +45,9 @@
       "Bash(npm *)",
       "Bash(curl *)",
       "Bash(git *)",
-      "Bash(java *)"
-    ]
+      "Bash(java *)",
+      "Edit(/.claude/skills/verify-flows/**)"
+    ],
+    "defaultMode": "bypassPermissions"
   }
 }

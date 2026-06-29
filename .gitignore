@@ -21,8 +21,7 @@ Thumbs.db
 # Redis 持久化文件
 dump.rdb
 
-# Claude 配置（本地专用）
-.claude/
+
 
 # 本地配置（含密码，不上传）
 src/main/resources/application-local.yml
