@@ -297,69 +297,96 @@ docker compose up -d
 
 ### 10.4 Docker 使用指南
 
-#### 首次启动
+> **💡 先登录再拉取**：镜像存储在私有 GHCR（GitHub Container Registry），需要先登录才能拉取。
+> 登录用的 Token 在 https://github.com/settings/tokens 创建，勾选 `read:packages` 权限。
+>
+> ```powershell
+> echo ghp_你的Token | docker login ghcr.io -u 你的用户名 --password-stdin
+> ```
 
+---
+
+#### 场景一：我是项目维护者（你）
+
+**日常启动**（电脑重启后）：
 ```powershell
-# 先登录 GHCR（拉取私有镜像需要）
-echo ghp_你的Token | docker login ghcr.io -u CwtchToMe --password-stdin
+# 1. 启动 Docker Desktop（右下角图标变绿）
+# 2. 启动所有服务
+cd d:\work\项目\TakeOutSystem
+docker compose up -d
+```
 
-# 构建并启动所有服务
+**改代码后重新构建**：
+```powershell
 docker compose up -d --build
 ```
 
-> 提示：`--build` 只在首次或改代码后需要，平时直接 `docker compose up -d` 即可。
-
-#### 常用命令
-
+**提交代码触发 CI 自动构建**：
 ```powershell
-# 查看所有容器状态
-docker compose ps
+git add .
+git commit -m "改了xxx"
+git push
+# CI 自动在 GitHub 服务器上构建镜像并推送到 GHCR
+```
 
-# 查看实时日志
-docker compose logs -f
+---
 
-# 只看后端日志
-docker compose logs -f backend
+#### 场景二：我是协作者（别人拉取项目）
 
-# 重启某个服务（改配置后）
-docker compose restart backend
+**首次运行**（新电脑）：
+```powershell
+# 1. 克隆代码
+git clone https://github.com/CwtchToMe/TakeOutSystem.git
+cd TakeOutSystem
 
-# 重新构建某个服务（改代码后）
-docker compose build backend
+# 2. 登录 GHCR（需要仓库访问权限 + 自己的 GitHub Token）
+echo ghp_他的Token | docker login ghcr.io -u 他的用户名 --password-stdin
+
+# 3. 一键启动（自动拉取镜像，无需编译）
+docker compose up -d
+```
+
+**更新到最新版本**：
+```powershell
+git pull                         # 拉取最新代码
+docker compose pull              # 拉取 CI 最新构建的镜像
+docker compose up -d             # 重启
+```
+
+---
+
+#### 场景三：我只看前端页面（设计师/产品经理）
+
+不需要装后端环境，只需要前端跑起来看效果：
+```powershell
+# 方式一：Docker 全量启动（最简单）
 docker compose up -d
 
-# 停止所有服务（数据保留）
-docker compose stop
-
-# 完全停止并清理
-docker compose down
-
-# 停止并删库（重置开发环境）
-docker compose down -v
+# 方式二：单独启动某个前端
+docker compose up -d h5          # 只看消费者 H5 → http://localhost:3001
+docker compose up -d admin-web   # 只看管理后台 → http://localhost:3003
 ```
 
-#### 健康检查
+---
 
-```powershell
-# 查看各服务健康状态
-docker compose ps
+#### 常用命令速查
 
-# 直接访问后端健康接口
-curl http://localhost:8080/api/health
-```
-
-#### 前端访问地址
-
-| 前端 | 地址 |
+| 命令 | 作用 |
 |------|------|
-| 消费者 H5 | http://localhost:3001 |
-| 商家端 | http://localhost:3002 |
-| 管理后台 | http://localhost:3003 |
-| API 文档 | http://localhost:8080/doc.html |
+| `docker compose up -d` | 启动所有服务（后台） |
+| `docker compose up -d --build` | 重新编译并启动（改代码后用） |
+| `docker compose down` | 停止所有服务（数据保留） |
+| `docker compose down -v` | 停止并删库（重置环境） |
+| `docker compose pull` | 拉取 GHCR 最新镜像 |
+| `docker compose logs -f` | 查看实时日志 |
+| `docker compose logs -f backend` | 只看后端日志 |
+| `docker compose ps` | 查看所有容器状态 |
+| `docker compose restart backend` | 重启某个服务 |
+| `docker compose build backend` | 重新编译某个服务 |
 
 ### 10.5 镜像仓库（GHCR）
 
-构建好的 Docker 镜像存储在 **GitHub Container Registry（GHCR）**，与你 GitHub 仓库的访问权限一致。
+构建好的 Docker 镜像存储在 **GitHub Container Registry（GHCR）**，权限与 GitHub 仓库一致（有仓库访问权限的人才能拉取镜像）。
 
 | 镜像 | 拉取地址 |
 |------|---------|
@@ -369,9 +396,6 @@ curl http://localhost:8080/api/health
 | 管理后台 | `docker pull ghcr.io/cwtochtome/takeout-admin:latest` |
 
 镜像列表页：https://github.com/CwtchToMe?tab=packages&repo_name=TakeOutSystem
-
-> **注意**：镜像权限继承自 GitHub 仓库 — 有仓库访问权限的人才能拉取镜像。
-> 首次拉取需 `docker login ghcr.io -u CwtchToMe --password-stdin` 并用 GitHub Token 认证。
 
 ---
 
