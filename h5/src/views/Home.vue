@@ -238,6 +238,9 @@ onMounted(async () => {
     merchants.value = records
     page.value = 2
     finished.value = merchants.value.length >= total
+  } catch (e) {
+    showToast('加载商家列表失败')
+    finished.value = true
   } finally {
     loading.value = false
   }
@@ -252,6 +255,8 @@ const loadMore = async () => {
     if (merchants.value.length >= total || records.length === 0) {
       finished.value = true
     }
+  } catch (e) {
+    finished.value = true
   } finally {
     loadingMore.value = false
   }
@@ -265,6 +270,8 @@ const onRefresh = async () => {
     merchants.value = records
     page.value = 2
     finished.value = merchants.value.length >= total
+  } catch (e) {
+    finished.value = true
   } finally {
     refreshing.value = false
   }

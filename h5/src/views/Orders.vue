@@ -133,15 +133,18 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
 import { getMyOrders, cancelOrder, addToCart } from '../api'
 import { useCartStore } from '../store/cart'
 
 const router = useRouter()
+const route = useRoute()
 const cartStore = useCartStore()
-const activeTab = ref(null)
+// 优先使用 URL 查询参数指定 tab（从 Profile 快捷入口跳转过来时）
+const initStatus = route.query.status
+const activeTab = ref(initStatus ? (initStatus === 'in_progress' ? 'in_progress' : Number(initStatus)) : null)
 const orders = ref([])
 const loading = ref(false)
 const finished = ref(false)
@@ -187,7 +190,10 @@ const loadData = async () => {
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       total = (r3.data.total || 0) + (r5.data.total || 0)
     } else {
-      const res = await getMyOrders({ status: activeTab.value, page: page.value, size: 10 })
+      // 全部订单：不传 status 参数，避免 axios 序列化 null 导致参数异常
+      const params = { page: page.value, size: 10 }
+      if (activeTab.value !== null) params.status = activeTab.value
+      const res = await getMyOrders(params)
       records = res.data.records || []
       total = res.data.total || 0
     }
@@ -196,6 +202,12 @@ const loadData = async () => {
     if (orders.value.length >= total || records.length < 10) {
       finished.value = true
     }
+  } catch (e) {
+    if (e && (e.response?.status === 401 || e.message?.includes('登录已过期') || e.message?.includes('未登录'))) {
+      return
+    }
+    showToast(e?.message || '加载订单失败')
+    finished.value = true
   } finally {
     loading.value = false
   }
@@ -208,15 +220,15 @@ const onLoad = async () => {
 const orderStatusLabel = (s) => {
   const m = {
     1: '待支付', 2: '待接单', 3: '备餐中',
-    4: '待取餐', 5: '配送中', 6: '已完成',
-    7: '已取消', 8: '退款中', 9: '已退款'
+    5: '配送中', 6: '已完成',
+    7: '已取消'
   }
   return m[s] ?? '未知'
 }
 
 const getStatusClass = (s) => {
   if (s === 6) return 'status-done'
-  if (s === 7 || s === 9) return 'status-cancel'
+  if (s === 7) return 'status-cancel'
   if (s === 1) return 'status-pay'
   return 'status-progress'
 }
@@ -232,7 +244,11 @@ const handleCancel = async (order) => {
     showToast({ message: '订单已取消', icon: 'checked' })
     resetList()
     await loadData()
-  } catch (e) {}
+  } catch (e) {
+    if (e && e.message && e.message !== 'cancel') {
+      showToast(e.message || '取消失败')
+    }
+  }
 }
 
 const handleReorder = async (order) => {
@@ -252,7 +268,9 @@ const handleReorder = async (order) => {
     await cartStore.loadCart(merchantId)
     router.push('/cart')
   } catch (e) {
-    showToast('操作失败，请重试')
+    if (!(e && (e.response?.status === 401 || e.message?.includes('登录已过期') || e.message?.includes('未登录')))) {
+      showToast('操作失败，请重试')
+    }
   }
 }
 </script>

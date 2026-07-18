@@ -15,12 +15,12 @@ java -Xmx512m -jar target/takeout-app.jar
 ```
 
 初始化数据库（只需一次）：`mysql -uroot -proot < init/sql/init.sql`  
-日志：`C:\workD\code\TakeoutSystem\logs\takeout-out.log`  
+日志：`logs\takeout-out.log`（项目根目录下）  
 API 文档：http://localhost:8080/doc.html
 
 ## 控制台与脚本工具
 
-- `C:\workD\software\console.ps1` — 交互式管理面板，详见 [README.md](README.md)。
+- `scripts\console.ps1` — 交互式管理面板
 - `scripts\start-all.ps1` — 一键启动 MySQL + Redis + 后端。
 - `scripts\diagnose.ps1` — 一键诊断所有服务状态，给出修复建议。
 

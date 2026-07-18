@@ -16,14 +16,31 @@ request.interceptors.request.use(config => {
   return config
 })
 
-// 清除 auth 并跳登录
+// 清除 auth 并跳登录（防重复调用）
+let _unauthorizedLock = false
+let _lockTimer = null
 function handleUnauthorized() {
+  if (_unauthorizedLock) return
+  _unauthorizedLock = true
   localStorage.removeItem('h5_token')
   localStorage.removeItem('h5_userId')
   localStorage.removeItem('h5_nickname')
+  // 安全超时：3秒后无论如何都重置锁，防止锁被永久卡住
+  if (_lockTimer) clearTimeout(_lockTimer)
+  _lockTimer = setTimeout(() => { _unauthorizedLock = false }, 3000)
   if (router.currentRoute.value.path !== '/login') {
     showToast({ message: '登录已过期，请重新登录', position: 'top' })
-    router.push('/login')
+    router.push('/login').then(() => {
+      _unauthorizedLock = false
+      if (_lockTimer) { clearTimeout(_lockTimer); _lockTimer = null }
+    }).catch(() => {
+      // 导航被取消（如已在登录页），安全重置锁
+      _unauthorizedLock = false
+      if (_lockTimer) { clearTimeout(_lockTimer); _lockTimer = null }
+    })
+  } else {
+    _unauthorizedLock = false
+    if (_lockTimer) { clearTimeout(_lockTimer); _lockTimer = null }
   }
 }
 

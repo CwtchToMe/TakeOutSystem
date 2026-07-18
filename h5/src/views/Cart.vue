@@ -149,17 +149,33 @@ onMounted(async () => {
       merchantName.value = m.name || ''
       deliveryFee.value = Number(m.deliveryFee) || 3
       minOrder.value = Number(m.minOrderPrice) || 0
-    } catch (e) {}
+    } catch (e) {
+      if (!(e && (e.response?.status === 401 || e.message?.includes('登录已过期') || e.message?.includes('未登录')))) {
+        showToast('加载商家信息失败')
+      }
+    }
   }
 })
 
 const handleMinus = async (item) => {
-  const qty = item.quantity - 1
-  await cartStore.changeQuantity(item.id, qty)
+  try {
+    const qty = item.quantity - 1
+    await cartStore.changeQuantity(item.id, qty)
+  } catch (e) {
+    if (!(e && (e.response?.status === 401 || e.message?.includes('登录已过期') || e.message?.includes('未登录')))) {
+      showToast(e?.message || '操作失败')
+    }
+  }
 }
 
 const handlePlus = async (item) => {
-  await cartStore.changeQuantity(item.id, item.quantity + 1)
+  try {
+    await cartStore.changeQuantity(item.id, item.quantity + 1)
+  } catch (e) {
+    if (!(e && (e.response?.status === 401 || e.message?.includes('登录已过期') || e.message?.includes('未登录')))) {
+      showToast(e?.message || '操作失败')
+    }
+  }
 }
 
 const goConfirm = () => {

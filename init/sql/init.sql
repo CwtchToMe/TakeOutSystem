@@ -3,6 +3,9 @@
 -- 数据库: db_takeout（单库，原多个微服务库合并）
 -- =====================================================================
 
+-- 强制连接使用 utf8mb4，防止 Windows cmd/chcp 默认编码导致中文乱码
+SET NAMES utf8mb4;
+
 CREATE DATABASE IF NOT EXISTS db_takeout DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE db_takeout;
 
@@ -244,13 +247,19 @@ CREATE TABLE IF NOT EXISTS t_user_coupon (
     KEY idx_coupon_id (coupon_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户领券表';
 
--- 为订单表增加优惠相关字段
-ALTER TABLE t_order
-    ADD COLUMN IF NOT EXISTS discount       DECIMAL(8,2) NOT NULL DEFAULT 0.00 COMMENT '优惠金额' AFTER actual_price,
-    ADD COLUMN IF NOT EXISTS user_coupon_id BIGINT DEFAULT NULL COMMENT '使用的用户券ID' AFTER discount;
+-- 为订单表增加优惠相关字段（幂等：列已存在时跳过）
+-- MySQL 不支持 ADD COLUMN IF NOT EXISTS，改用信息模式检查
+SET @__db = (SELECT DATABASE());
+SET @__discount_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@__db AND TABLE_NAME='t_order' AND COLUMN_NAME='discount');
+SET @__sql1 = IF(@__discount_exists = 0, 'ALTER TABLE t_order ADD COLUMN discount DECIMAL(8,2) NOT NULL DEFAULT 0.00 COMMENT ''优惠金额'' AFTER actual_price', 'SELECT 1');
+PREPARE stmt1 FROM @__sql1; EXECUTE stmt1; DEALLOCATE PREPARE stmt1;
+
+SET @__coupon_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@__db AND TABLE_NAME='t_order' AND COLUMN_NAME='user_coupon_id');
+SET @__sql2 = IF(@__coupon_exists = 0, 'ALTER TABLE t_order ADD COLUMN user_coupon_id BIGINT DEFAULT NULL COMMENT ''使用的用户券ID'' AFTER discount', 'SELECT 1');
+PREPARE stmt2 FROM @__sql2; EXECUTE stmt2; DEALLOCATE PREPARE stmt2;
 
 -- 测试优惠券数据
-INSERT IGNORE INTO t_coupon (id, title, type, min_order_price, discount, total_count, received_count,
+REPLACE INTO t_coupon (id, title, type, min_order_price, discount, total_count, received_count,
     valid_start, valid_end, status) VALUES
 (1, '新人专享券', 1, 20.00, 5.00, 1000, 0, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), 1),
 (2, '满30减8', 1, 30.00, 8.00, 500, 0, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), 1),
@@ -261,22 +270,25 @@ INSERT IGNORE INTO t_coupon (id, title, type, min_order_price, discount, total_c
 -- =====================================================================
 
 -- 管理员账号（手机号登录，验证码模拟）
-INSERT IGNORE INTO t_user (id, phone, nickname, role, status) VALUES
+-- 使用 REPLACE INTO 修复可能被错误连接编码写入的乱码数据
+REPLACE INTO t_user (id, phone, nickname, role, status) VALUES
 (1, '13800000001', '管理员', 'ADMIN', 1),
 (2, '13800000002', '测试商家', 'MERCHANT', 1),
-(3, '13800000003', '测试用户', 'CUSTOMER', 1);
+(3, '13800000003', '测试用户', 'CUSTOMER', 1),
+(4, '13800000004', '快乐汉堡商家', 'MERCHANT', 1);
 
 -- 测试商家（已审核通过，营业中）
-INSERT IGNORE INTO t_merchant (id, owner_id, name, logo_url, description, phone, province, city, district,
+-- 注意：香辣料理 owner=用户2(13800000002)  快乐汉堡 owner=用户4(13800000004)
+REPLACE INTO t_merchant (id, owner_id, name, logo_url, description, phone, province, city, district,
     address, longitude, latitude, delivery_fee, min_order_price, delivery_time, status, score, sales_count)
 VALUES
 (1, 2, '香辣料理', '/images/merchants/spicy-cuisine-logo.jpg', '招牌川菜，麻辣鲜香', '13900000001', '北京市', '北京市', '朝阳区',
     '朝阳区建国路88号', 116.4630, 39.9210, 3.00, 20.00, 30, 1, 4.8, 1256),
-(2, 2, '快乐汉堡', '/images/merchants/happy-burger-logo.jpg', '美式快餐，现做现卖', '13900000002', '北京市', '北京市', '海淀区',
+(2, 4, '快乐汉堡', '/images/merchants/happy-burger-logo.jpg', '美式快餐，现做现卖', '13900000002', '北京市', '北京市', '海淀区',
     '海淀区中关村大街1号', 116.3170, 39.9830, 0.00, 15.00, 20, 1, 4.6, 890);
 
 -- 测试分类
-INSERT IGNORE INTO t_category (id, merchant_id, name, sort, status) VALUES
+REPLACE INTO t_category (id, merchant_id, name, sort, status) VALUES
 (1, 1, '主食', 1, 1),
 (2, 1, '小炒', 2, 1),
 (3, 1, '饮品', 3, 1),
@@ -284,7 +296,7 @@ INSERT IGNORE INTO t_category (id, merchant_id, name, sort, status) VALUES
 (5, 2, '炸鸡', 2, 1);
 
 -- 测试菜品
-INSERT IGNORE INTO t_dish (id, merchant_id, category_id, name, description, price, stock, sales, status, sort, image_url) VALUES
+REPLACE INTO t_dish (id, merchant_id, category_id, name, description, price, stock, sales, status, sort, image_url) VALUES
 (1, 1, 1, '川味红烧肉饭', '软糯入味，米饭香浓', 22.00, 100, 356, 1, 1, '/images/dishes/braised-pork-rice.jpg'),
 (2, 1, 1, '麻婆豆腐饭', '麻辣鲜香，豆腐嫩滑', 18.00, 100, 289, 1, 2, '/images/dishes/mapo-tofu-rice.jpg'),
 (3, 1, 2, '宫保鸡丁', '酸甜微辣，经典川菜', 28.00, 50, 178, 1, 1, '/images/dishes/kung-pao-chicken.jpg'),
@@ -293,6 +305,6 @@ INSERT IGNORE INTO t_dish (id, merchant_id, category_id, name, description, pric
 (6, 2, 5, '香辣炸鸡腿', '外酥里嫩，香辣过瘾', 16.00, 80, 567, 1, 1, '/images/dishes/fried-chicken.jpg');
 
 -- 测试收货地址
-INSERT IGNORE INTO t_user_address (id, user_id, receiver, phone, province, city, district, detail,
+REPLACE INTO t_user_address (id, user_id, receiver, phone, province, city, district, detail,
     longitude, latitude, is_default) VALUES
 (1, 3, '张三', '13800000003', '北京市', '北京市', '朝阳区', '朝阳区建国路100号1单元101', 116.4650, 39.9200, 1);

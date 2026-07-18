@@ -197,7 +197,6 @@ const reviewed = ref(false)
 const progressSteps = [
   { label: '待接单', status: 2 },
   { label: '备餐中', status: 3 },
-  { label: '待取餐', status: 4 },
   { label: '配送中', status: 5 }
 ]
 
@@ -207,21 +206,29 @@ const itemsTotal = computed(() => {
 })
 
 onMounted(async () => {
-  const res = await getOrderDetail(orderNo)
-  order.value = res.data
-  if (res.data?.status === 6) {
-    try {
-      const rv = await getOrderReview(orderNo)
-      reviewed.value = !!rv.data
-    } catch {}
+  try {
+    const res = await getOrderDetail(orderNo)
+    order.value = res.data
+    if (res.data?.status === 6) {
+      try {
+        const rv = await getOrderReview(orderNo)
+        reviewed.value = !!rv.data
+      } catch {
+        // 401 handled in interceptor, review loading is optional
+      }
+    }
+  } catch (e) {
+    if (!(e && (e.response?.status === 401 || e.message?.includes('登录已过期') || e.message?.includes('未登录')))) {
+      showToast('加载订单详情失败')
+    }
   }
 })
 
 const orderStatusLabel = (s) => {
   const m = {
     1: '待支付', 2: '待接单', 3: '备餐中',
-    4: '待取餐', 5: '配送中', 6: '已完成',
-    7: '已取消', 8: '退款中', 9: '已退款'
+    5: '配送中', 6: '已完成',
+    7: '已取消'
   }
   return m[s] ?? '未知'
 }
@@ -230,11 +237,9 @@ const getStatusEmoji = (s) => {
   if (s === 1) return '⏰'
   if (s === 2) return '📋'
   if (s === 3) return '👨‍🍳'
-  if (s === 4) return '📦'
   if (s === 5) return '🛵'
   if (s === 6) return '✅'
-  if (s === 7 || s === 9) return '❌'
-  if (s === 8) return '💰'
+  if (s === 7) return '❌'
   return '📝'
 }
 
@@ -243,12 +248,9 @@ const getStatusDesc = (s) => {
     1: '请尽快完成支付，超时将自动取消',
     2: '商家正在确认您的订单',
     3: '商家正在为您精心制作',
-    4: '餐品已准备好，骑手即将取餐',
     5: '骑手正在赶往配送地址',
     6: '订单已完成，感谢您的光临',
-    7: '订单已取消',
-    8: '退款申请处理中',
-    9: '退款已完成'
+    7: '订单已取消'
   }
   return m[s] ?? ''
 }
@@ -270,7 +272,11 @@ const handleCancel = async () => {
     showToast({ message: '订单已取消', icon: 'checked' })
     const res = await getOrderDetail(orderNo)
     order.value = res.data
-  } catch (e) {}
+  } catch (e) {
+    if (e && e.message && e.message !== 'cancel') {
+      showToast(e.message || '取消失败')
+    }
+  }
 }
 
 const handleReceive = async () => {
@@ -282,6 +288,9 @@ const handleReceive = async () => {
     const res = await getOrderDetail(orderNo)
     order.value = res.data
   } catch (e) {
+    if (e && e.message && e.message !== 'cancel') {
+      showToast(e.message || '操作失败')
+    }
   } finally {
     receiving.value = false
   }

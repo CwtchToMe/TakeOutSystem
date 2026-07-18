@@ -56,7 +56,7 @@
           <div class="fi-icon fi-pending">⏰</div>
           <div class="fi-label">待接单</div>
         </div>
-        <div class="feature-item" @click="router.push('/orders?status=3')">
+        <div class="feature-item" @click="router.push('/orders?status=in_progress')">
           <div class="fi-icon fi-cooking">👨‍🍳</div>
           <div class="fi-label">进行中</div>
         </div>
@@ -218,7 +218,11 @@ onMounted(async () => {
   try {
     const res = await getMyProfile()
     profile.value = res.data
-  } catch (e) {}
+  } catch (e) {
+    if (e && (e.response?.status === 401 || e.message?.includes('登录已过期') || e.message?.includes('未登录'))) {
+      return
+    }
+  }
   try {
     const [ordersRes, couponsRes, favoritesRes, reviewsRes] = await Promise.allSettled([
       getMyOrders({ page: 1, size: 1 }),
@@ -230,7 +234,9 @@ onMounted(async () => {
     if (couponsRes.status === 'fulfilled') stats.value.couponCount = (couponsRes.value.data || []).filter(c => c.status === 0).length
     if (favoritesRes.status === 'fulfilled') stats.value.favoriteCount = (favoritesRes.value.data || []).length
     if (reviewsRes.status === 'fulfilled') stats.value.reviewCount = (reviewsRes.value.data || []).length
-  } catch (e) {}
+  } catch (e) {
+    // Promise.allSettled 不会抛出异常，但保留 catch 以防意外
+  }
 })
 
 const handleAvatarClick = () => {

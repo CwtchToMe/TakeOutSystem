@@ -120,7 +120,7 @@
         <div class="cp-list">
           <div
             class="cp-item"
-            :class="{ 'cp-item--selected': selectedCoupon?.id === null }"
+            :class="{ 'cp-item--selected': selectedCoupon === null }"
             @click="selectCoupon(null)"
           >
             <div class="cp-item-info">不使用优惠券</div>
@@ -202,8 +202,14 @@ const selectCoupon = (coupon) => {
 }
 
 onMounted(async () => {
-  const [addrRes] = await Promise.all([getAddresses()])
-  addresses.value = addrRes.data || []
+  try {
+    const [addrRes] = await Promise.all([getAddresses()])
+    addresses.value = addrRes.data || []
+  } catch (e) {
+    if (!(e && (e.response?.status === 401 || e.message?.includes('登录已过期') || e.message?.includes('未登录')))) {
+      showToast('加载地址失败')
+    }
+  }
 
   // 从地址选择页返回时，优先使用 URL 中传入的 selectedAddressId（保持字符串比较，避免 Snowflake ID 精度丢失）
   const qSelectedIdStr = route.query.selectedAddressId || null
@@ -219,7 +225,11 @@ onMounted(async () => {
       const mr = await getMerchantDetail(cartStore.currentMerchantId)
       merchantName.value = mr.data.name || ''
       deliveryFee.value = Number(mr.data.deliveryFee) || 3
-    } catch (e) {}
+    } catch (e) {
+      if (!(e && (e.response?.status === 401 || e.message?.includes('登录已过期') || e.message?.includes('未登录')))) {
+        showToast('加载商家信息失败')
+      }
+    }
   }
   // Load usable coupons after price is known
   try {
@@ -232,7 +242,11 @@ onMounted(async () => {
         Number(c.discount) > Number(best.discount) ? c : best
       )
     }
-  } catch (e) {}
+  } catch (e) {
+    if (!(e && (e.response?.status === 401 || e.message?.includes('登录已过期') || e.message?.includes('未登录')))) {
+      showToast('加载优惠券失败')
+    }
+  }
 })
 
 const handleSubmit = async () => {
@@ -262,6 +276,11 @@ const handleSubmit = async () => {
     await cartStore.clearCart()
     showToast({ message: '下单成功！', icon: 'checked' })
     router.push(`/pay/${orderNo}`)
+  } catch (e) {
+    // 401 错误已在拦截器中处理
+    if (!(e && (e.response?.status === 401 || e.message?.includes('登录已过期') || e.message?.includes('未登录')))) {
+      showToast(e?.message || '提交失败，请重试')
+    }
   } finally {
     submitting.value = false
   }

@@ -280,13 +280,20 @@ onMounted(async () => {
     merchant.value = mr.data
     menu.value = menuRes.data || []
     await cartStore.loadCart(merchantId)
+  } catch (e) {
+    if (e && (e.response?.status === 401 || e.message?.includes('登录已过期') || e.message?.includes('未登录'))) {
+      return
+    }
+    showToast('加载商家信息失败')
   } finally {
     pageLoading.value = false
   }
   try {
     const favRes = await checkFavorite(merchantId)
     isFavorited.value = !!favRes.data
-  } catch {}
+  } catch {
+    // 收藏状态查询失败不影响主流程
+  }
 
   // 监听页面滚动判断是否显示 NavBar 标题
   const container = document.querySelector('.merchant-detail')

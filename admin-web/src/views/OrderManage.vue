@@ -63,6 +63,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
 import { getOrders } from '../api/index'
 
 const ORDER_STATUS = {
@@ -88,7 +89,9 @@ const fetchData = async () => {
     const res = await getOrders(params)
     orders.value = res.data.records
     total.value = Number(res.data.total)
-  } catch {} finally {
+  } catch (e) {
+    ElMessage.error(e?.response?.data?.message || e?.message || '查询订单失败')
+  } finally {
     loading.value = false
   }
 }

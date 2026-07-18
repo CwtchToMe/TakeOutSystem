@@ -71,7 +71,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showToast, showSuccessToast } from 'vant'
-import { createPayment, mockCallback, getPayStatus } from '../api'
+import { createPayment, mockCallback, getPayStatus, getOrderDetail } from '../api'
 
 const route = useRoute()
 const router = useRouter()
@@ -96,13 +96,39 @@ const formatTime = (s) => {
 }
 
 onMounted(async () => {
+  // 先查询订单状态，如果已经支付/取消则直接跳转
   try {
-    // 创建或幂等获取支付单
+    const orderRes = await getOrderDetail(orderNo)
+    if (orderRes.data) {
+      const status = orderRes.data.status
+      if (status !== 1) {
+        if (status === 2 || status === 3 || status === 5 || status === 6) {
+          showToast('订单已支付')
+        } else {
+          showToast('订单状态已变更')
+        }
+        router.replace(`/order/${orderNo}`)
+        return
+      }
+    }
+  } catch (e) {
+    if (e && (e.response?.status === 401 || e.message?.includes('登录已过期') || e.message?.includes('未登录'))) {
+      return
+    }
+  }
+
+  // 创建或幂等获取支付单
+  try {
     const payRes = await createPayment({ orderNo, payType: selectedPay.value })
     paymentNo.value = payRes.data.paymentNo
   } catch (e) {
-    // 支付单已存在，忽略报错继续
+    // 如果是 401 认证错误，handleUnauthorized 已处理
+    if (e && (e.response?.status === 401 || e.message?.includes('登录已过期') || e.message?.includes('未登录'))) {
+      return
+    }
+    // 其他错误：可能支付单已存在（幂等），继续尝试查询状态
   }
+
   // 无论成功还是幂等，都通过查询状态获取金额
   try {
     const statusRes = await getPayStatus(orderNo)
@@ -110,8 +136,15 @@ onMounted(async () => {
       paymentNo.value = statusRes.data.paymentNo || paymentNo.value
       amount.value = statusRes.data.amount
     }
-  } catch (e2) {}
-
+  } catch (e2) {
+    if (e2 && (e2.response?.status === 401 || e2.message?.includes('登录已过期') || e2.message?.includes('未登录'))) {
+      return
+    }
+    // 非 401 错误：如果还没有 paymentNo，显示错误提示
+    if (!paymentNo.value) {
+      showToast('加载支付信息失败，请返回重试')
+    }
+  }
 
   // 倒计时
   timer = setInterval(() => {
@@ -136,9 +169,27 @@ const handlePay = async () => {
   try {
     await mockCallback({ paymentNo: paymentNo.value, success: true })
     showSuccessToast('支付成功！')
+    // 清除倒计时，防止超时提示干扰
+    if (timer) { clearInterval(timer); timer = null }
     setTimeout(() => {
       router.replace(`/order/${orderNo}`)
     }, 1200)
+  } catch (e) {
+    // 401 错误已在拦截器中处理
+    if (e && (e.response?.status === 401 || e.message?.includes('登录已过期') || e.message?.includes('未登录'))) {
+      return
+    }
+    const msg = e?.message || ''
+    // 如果支付已处理（幂等），直接跳转到订单详情
+    if (msg.includes('已处理') || msg.includes('已支付') || msg.includes('订单状态已变更')) {
+      showSuccessToast('支付成功！')
+      if (timer) { clearInterval(timer); timer = null }
+      setTimeout(() => {
+        router.replace(`/order/${orderNo}`)
+      }, 800)
+      return
+    }
+    showToast(msg || '支付失败，请重试')
   } finally {
     paying.value = false
   }

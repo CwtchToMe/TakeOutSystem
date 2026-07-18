@@ -168,11 +168,28 @@ const onStatusFilterChange = () => {
 const loadOrders = async () => {
   if (!merchantId.value) return
   loading.value = true
-  const effectiveStatus = activeTab.value === 'pending' ? 2
-    : activeTab.value === 'cooking' ? null
-    : statusFilter.value
+  // 构造查询参数，null 值不传避免 Axios 序列化异常
+  const params = { merchantId: merchantId.value, page: page.value, size: 20 }
+  if (activeTab.value === 'pending') {
+    params.status = 2
+  } else if (activeTab.value === 'cooking') {
+    // 备餐中 tab 只查 status=3 和 5，不拉全部再前端过滤
+    const [r3, r5] = await Promise.all([
+      getMerchantOrders({ ...params, status: 3 }),
+      getMerchantOrders({ ...params, status: 5 })
+    ])
+    const r3list = r3.data.records || []
+    const r5list = r5.data.records || []
+    allOrders.value = [...r3list, ...r5list]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    total.value = (r3.data.total || 0) + (r5.data.total || 0)
+    loading.value = false
+    return
+  } else if (statusFilter.value !== null) {
+    params.status = statusFilter.value
+  }
   try {
-    const res = await getMerchantOrders({ merchantId: merchantId.value, status: effectiveStatus, page: page.value, size: 20 })
+    const res = await getMerchantOrders(params)
     allOrders.value = res.data.records || []
     total.value = res.data.total
   } catch (e) {

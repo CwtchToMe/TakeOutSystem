@@ -275,7 +275,11 @@ const handleDelete = async (addr) => {
     await deleteAddress(addr.id)
     showToast('地址已删除')
     await loadAddresses()
-  } catch (e) {}
+  } catch (e) {
+    if (e && e.message && e.message !== 'cancel') {
+      showToast(e.message || '删除失败')
+    }
+  }
 }
 
 const handleSetDefault = async (addr) => {

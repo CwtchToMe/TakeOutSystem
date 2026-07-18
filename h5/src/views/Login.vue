@@ -109,6 +109,8 @@ const handleSendSms = async () => {
       countdown.value--
       if (countdown.value <= 0) clearInterval(timer)
     }, 1000)
+  } catch {
+    // 错误已在拦截器中处理（401/网络错误等），无需额外提示
   } finally {
     sending.value = false
   }
@@ -125,6 +127,8 @@ const handleLogin = async () => {
     })
     showToast({ message: '登录成功', icon: 'checked' })
     router.replace('/')
+  } catch {
+    // 错误已在拦截器中处理（验证码错误等），无需额外提示
   } finally {
     loading.value = false
   }

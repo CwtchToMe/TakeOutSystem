@@ -40,15 +40,21 @@ public class AuthInterceptor implements HandlerInterceptor {
             "/api/merchant/search",
             "/api/product/menu/**",
             "/api/review/merchant/**",
+            "/api/review/order/**",
             "/doc.html", "/doc.html/**", "/v3/api-docs/**",
-            "/swagger-ui/**", "/webjars/**", "/favicon.ico"
-    );
+            "/swagger-ui/**", "/webjars/**", "/favicon.ico");
 
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
+            throws Exception {
         String path = request.getRequestURI();
 
         if (WHITELIST.stream().anyMatch(p -> PATH_MATCHER.match(p, path))) {
+            return true;
+        }
+
+        // 公开的商户详情接口：/api/merchant/{数字ID}
+        if (path.matches("/api/merchant/\\d+")) {
             return true;
         }
 
@@ -86,14 +92,16 @@ public class AuthInterceptor implements HandlerInterceptor {
 
     @Override
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response,
-                                Object handler, Exception ex) {
+            Object handler, Exception ex) {
         UserContext.clear();
     }
 
     private Long extractUserId(Claims claims) {
         Object userId = claims.get("userId");
-        if (userId instanceof Integer i) return i.longValue();
-        if (userId instanceof Long l) return l;
+        if (userId instanceof Integer i)
+            return i.longValue();
+        if (userId instanceof Long l)
+            return l;
         return null;
     }
 
