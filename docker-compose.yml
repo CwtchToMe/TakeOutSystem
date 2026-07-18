@@ -1,0 +1,83 @@
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: takeout-mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: db_takeout
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./init/sql:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: takeout-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    container_name: takeout-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  h5:
+    build:
+      context: .
+      dockerfile: docker/h5/Dockerfile
+    container_name: takeout-h5
+    restart: unless-stopped
+    ports:
+      - "3001:80"
+    depends_on:
+      - backend
+
+  merchant-web:
+    build:
+      context: .
+      dockerfile: docker/merchant-web/Dockerfile
+    container_name: takeout-merchant
+    restart: unless-stopped
+    ports:
+      - "3002:80"
+    depends_on:
+      - backend
+
+  admin-web:
+    build:
+      context: .
+      dockerfile: docker/admin-web/Dockerfile
+    container_name: takeout-admin
+    restart: unless-stopped
+    ports:
+      - "3003:80"
+    depends_on:
+      - backend
+
+volumes:
+  mysql-data:
