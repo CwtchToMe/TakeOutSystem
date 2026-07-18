@@ -31,6 +31,7 @@ services:
       retries: 5
 
   backend:
+    image: ghcr.io/cwtochtome/takeout-backend:latest
     build:
       context: .
       dockerfile: docker/backend/Dockerfile
@@ -47,6 +48,7 @@ services:
         condition: service_healthy
 
   h5:
+    image: ghcr.io/cwtochtome/takeout-h5:latest
     build:
       context: .
       dockerfile: docker/h5/Dockerfile
@@ -58,6 +60,7 @@ services:
       - backend
 
   merchant-web:
+    image: ghcr.io/cwtochtome/takeout-merchant:latest
     build:
       context: .
       dockerfile: docker/merchant-web/Dockerfile
@@ -69,6 +72,7 @@ services:
       - backend
 
   admin-web:
+    image: ghcr.io/cwtochtome/takeout-admin:latest
     build:
       context: .
       dockerfile: docker/admin-web/Dockerfile
