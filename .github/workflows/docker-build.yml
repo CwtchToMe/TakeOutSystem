@@ -13,6 +13,12 @@ on:
       - 'docker-compose.yml'
       - '.github/workflows/docker-build.yml'
   workflow_dispatch:          # 支持手动触发
+    inputs:
+      clean:
+        description: 'Clean rebuild — clear cache and rebuild from scratch'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -38,6 +44,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Prune BuildKit cache (clean rebuild)
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.clean == 'true' }}
+        run: docker buildx prune -f --all
+
       - name: Build & push backend
         uses: docker/build-push-action@v6
         with:
@@ -46,6 +56,7 @@ jobs:
           push: true
           provenance: false
           sbom: false
+          no-cache: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.clean == 'true' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: |
@@ -70,6 +81,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Prune BuildKit cache (clean rebuild)
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.clean == 'true' }}
+        run: docker buildx prune -f --all
+
       - name: Build & push H5
         uses: docker/build-push-action@v6
         with:
@@ -78,6 +93,7 @@ jobs:
           push: true
           provenance: false
           sbom: false
+          no-cache: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.clean == 'true' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: |
@@ -102,6 +118,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Prune BuildKit cache (clean rebuild)
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.clean == 'true' }}
+        run: docker buildx prune -f --all
+
       - name: Build & push merchant-web
         uses: docker/build-push-action@v6
         with:
@@ -110,6 +130,7 @@ jobs:
           push: true
           provenance: false
           sbom: false
+          no-cache: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.clean == 'true' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: |
@@ -134,6 +155,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Prune BuildKit cache (clean rebuild)
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.clean == 'true' }}
+        run: docker buildx prune -f --all
+
       - name: Build & push admin-web
         uses: docker/build-push-action@v6
         with:
@@ -142,6 +167,7 @@ jobs:
           push: true
           provenance: false
           sbom: false
+          no-cache: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.clean == 'true' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: |
