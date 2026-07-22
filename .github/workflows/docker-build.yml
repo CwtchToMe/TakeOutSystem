@@ -35,12 +35,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build & push backend
         uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/backend/Dockerfile
           push: true
+          provenance: false
+          sbom: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           tags: |
             ghcr.io/${{ env.LOWER_OWNER }}/takeout-backend:latest
             ghcr.io/${{ env.LOWER_OWNER }}/takeout-backend:${{ github.sha }}
@@ -60,12 +67,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build & push H5
         uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/h5/Dockerfile
           push: true
+          provenance: false
+          sbom: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           tags: |
             ghcr.io/${{ env.LOWER_OWNER }}/takeout-h5:latest
             ghcr.io/${{ env.LOWER_OWNER }}/takeout-h5:${{ github.sha }}
@@ -85,12 +99,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build & push merchant-web
         uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/merchant-web/Dockerfile
           push: true
+          provenance: false
+          sbom: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           tags: |
             ghcr.io/${{ env.LOWER_OWNER }}/takeout-merchant:latest
             ghcr.io/${{ env.LOWER_OWNER }}/takeout-merchant:${{ github.sha }}
@@ -110,12 +131,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build & push admin-web
         uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/admin-web/Dockerfile
           push: true
+          provenance: false
+          sbom: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           tags: |
             ghcr.io/${{ env.LOWER_OWNER }}/takeout-admin:latest
             ghcr.io/${{ env.LOWER_OWNER }}/takeout-admin:${{ github.sha }}
