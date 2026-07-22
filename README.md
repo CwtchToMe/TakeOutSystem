@@ -48,8 +48,10 @@ cd ..
 | 6 | **管理后台** | 3003 | http://localhost:3003 | `cd admin-web && npm run dev` |
 
 > **推荐**：`scripts\start-all.ps1` — 一键启动 MySQL + Redis + 后端（前端各需单独终端）  
+> **停止**：`scripts\stop-all.ps1` — 一键停止所有服务（按端口自动查杀）  
 > **诊断**：`scripts\diagnose.ps1` — 自动检测所有服务并给出修复建议  
-> **控制台**：`scripts\console.ps1` — 交互式管理面板
+> **控制台**：`scripts\console.ps1` — 交互式管理面板  
+> **验证**：`scripts\verify-all.ps1` — API 冒烟测试（14 个检查点）
 
 ---
 
@@ -100,12 +102,13 @@ powershell scripts\diagnose.ps1
 
 ## 三、停止所有服务
 
+> 推荐使用专用停止脚本，按端口自动查杀、带彩色输出反馈：
+
 ```powershell
-$pid8080 = (netstat -ano | Select-String ":8080\s.*LISTENING")[0] -replace '.*\s(\d+)$','$1'
-if ($pid8080) { Stop-Process -Id ([int]$pid8080.Trim()) -Force }
-Get-Process -Name "redis-server" -ErrorAction SilentlyContinue | Stop-Process -Force
-Get-Process -Name "mysqld"       -ErrorAction SilentlyContinue | Stop-Process -Force
+powershell scripts\stop-all.ps1
 ```
+
+或直接使用控制台 `console.ps1 → 菜单 3 → 选 2（停止）`。
 
 ---
 
@@ -133,8 +136,10 @@ Get-Process -Name "mysqld"       -ErrorAction SilentlyContinue | Stop-Process -F
   ↓ 商家接单
 备餐中    → status=3(备餐中)
   ↓ 商家出餐
+待取餐    → status=4(待取餐)
+  ↓ 商家标记配送
 配送中    → status=5(配送中)
-  ↓ 用户确认收货
+  ↓ 用户确认收货 或 商家完成配送
 已完成    → status=6
 ```
 
@@ -231,7 +236,9 @@ mysql -uroot -proot --default-character-set=utf8mb4 < init/sql/init.sql
 | 组件 | 路径 |
 |---|---|
 | 一键启动脚本 | `scripts/start-all.ps1` |
+| 一键停止脚本 | `scripts/stop-all.ps1` |
 | 一键诊断脚本 | `scripts/diagnose.ps1` |
+| API 冒烟测试 | `scripts/verify-all.ps1` |
 | 交互式控制台 | `scripts/console.ps1` |
 | 后端 JAR | `target/takeout-app.jar` |
 | 应用日志 | `logs/takeout-out.log` |
@@ -270,16 +277,20 @@ TakeOutSystem/
 
 ### 10.2 各服务说明
 
-| 服务 | 容器名 | 端口 | 镜像（GHCR） |
-|------|--------|------|-------------|
+| 服务 | 容器名 | 端口 | 镜像（Docker Hub） |
+|------|--------|------|------------------|
 | MySQL 8.4 | `takeout-mysql` | 3306 | `mysql:8.4`（官方） |
 | Redis 7 | `takeout-redis` | 6379 | `redis:7-alpine`（官方） |
-| 后端 API | `takeout-backend` | 8080 | `ghcr.io/cwtochtome/takeout-backend` |
-| H5 前端 | `takeout-h5` | 3001 | `ghcr.io/cwtochtome/takeout-h5` |
-| 商家端 | `takeout-merchant` | 3002 | `ghcr.io/cwtochtome/takeout-merchant` |
-| 管理后台 | `takeout-admin` | 3003 | `ghcr.io/cwtochtome/takeout-admin` |
+| 后端 API | `takeout-backend` | 8080 | `cwtchtome/takeout-backend` |
+| H5 前端 | `takeout-h5` | 3001 | `cwtchtome/takeout-h5` |
+| 商家端 | `takeout-merchant` | 3002 | `cwtchtome/takeout-merchant` |
+| 管理后台 | `takeout-admin` | 3003 | `cwtchtome/takeout-admin` |
 
 **启动顺序**：MySQL → Redis → 后端（等待 DB 就绪）→ 前端（无依赖）。
+
+> **⚠️ GHCR 镜像仓库当前不可用**（详见 [[ghcr-namespace-corruption]]）。  
+> `docker-compose.yml` 已配置 `pull_policy: build`，所有服务从源码构建，无需拉取镜像。  
+> 如果未来 GHCR 恢复，去掉 `pull_policy: build` 即可恢复拉取行为。
 
 ### 10.3 Docker 化解决了什么
 
@@ -297,12 +308,11 @@ docker compose up -d
 
 ### 10.4 Docker 使用指南
 
-> **💡 先登录再拉取**：镜像存储在私有 GHCR（GitHub Container Registry），需要先登录才能拉取。
-> 登录用的 Token 在 https://github.com/settings/tokens 创建，勾选 `read:packages` 权限。
+> **⚠️ GHCR 当前不可用（2026-07）**：CwtchToMe 用户的 GHCR 命名空间损坏。
+> 已临时切换到 **Docker Hub**（`cwtchtome/takeout-*`），所有镜像已推送完毕。
 >
-> ```powershell
-> echo ghp_你的Token | docker login ghcr.io -u 你的用户名 --password-stdin
-> ```
+> **使用方式**：`docker compose up -d` 自动从 Docker Hub 拉取。
+> **登录**：协作者无需登录即可拉取（public 镜像）。
 
 ---
 
@@ -311,7 +321,7 @@ docker compose up -d
 **日常启动**（电脑重启后）：
 ```powershell
 # 1. 启动 Docker Desktop（右下角图标变绿）
-# 2. 启动所有服务
+# 2. 启动所有服务（自动拉取 Docker Hub 镜像）
 cd d:\work\项目\TakeOutSystem
 docker compose up -d
 ```
@@ -339,17 +349,14 @@ git push
 git clone https://github.com/CwtchToMe/TakeOutSystem.git
 cd TakeOutSystem
 
-# 2. 登录 GHCR（需要仓库访问权限 + 自己的 GitHub Token）
-echo ghp_他的Token | docker login ghcr.io -u 他的用户名 --password-stdin
-
-# 3. 一键启动（自动拉取镜像，无需编译）
+# 2. 一键启动（自动从 Docker Hub 拉取镜像，无需登录）
 docker compose up -d
 ```
 
 **更新到最新版本**：
 ```powershell
 git pull                         # 拉取最新代码
-docker compose pull              # 拉取 CI 最新构建的镜像
+docker compose pull              # 拉取最新镜像
 docker compose up -d             # 重启
 ```
 
@@ -386,16 +393,16 @@ docker compose up -d admin-web   # 只看管理后台 → http://localhost:3003
 
 ### 10.5 镜像仓库（GHCR）
 
-构建好的 Docker 镜像存储在 **GitHub Container Registry（GHCR）**，权限与 GitHub 仓库一致（有仓库访问权限的人才能拉取镜像）。
+Docker 镜像存储在 **Docker Hub**（2026-07 起临时替代 GHCR，等待 GHCR 修复）。
 
 | 镜像 | 拉取地址 |
 |------|---------|
-| 后端 | `docker pull ghcr.io/cwtochtome/takeout-backend:latest` |
-| H5 前端 | `docker pull ghcr.io/cwtochtome/takeout-h5:latest` |
-| 商家端 | `docker pull ghcr.io/cwtochtome/takeout-merchant:latest` |
-| 管理后台 | `docker pull ghcr.io/cwtochtome/takeout-admin:latest` |
+| 后端 | `docker pull cwtchtome/takeout-backend:latest` |
+| H5 前端 | `docker pull cwtchtome/takeout-h5:latest` |
+| 商家端 | `docker pull cwtchtome/takeout-merchant:latest` |
+| 管理后台 | `docker pull cwtchtome/takeout-admin:latest` |
 
-镜像列表页：https://github.com/CwtchToMe?tab=packages&repo_name=TakeOutSystem
+镜像列表页：https://hub.docker.com/u/cwtchtome
 
 ---
 
@@ -493,6 +500,9 @@ admin      ─── checkout → 登录 → npm build  → 构建镜像 → pus
 
 ### 11.4 CI/CD 完整流程
 
+> **⚠️ 当前推送到 Docker Hub**（2026-07 起临时替代已损坏的 GHCR）。  
+> 需要在 GitHub 仓库添加 `DOCKER_USERNAME` 和 `DOCKER_TOKEN` secrets 后 CI 才能工作。
+
 ```
 你 git push 到 main
        │
@@ -506,7 +516,7 @@ GitHub Actions 检测到代码改动
        └─ admin：      Node 20 → npm ci → npm run build → Nginx 镜像 → push
        │
        ▼
-4 个镜像推送到 ghcr.io/cwtochtome/*:latest
+4 个镜像推送到 cwtchtome/takeout-*:latest
 下次任何人 docker compose pull 即可获取最新版本
 ```
 
@@ -524,10 +534,11 @@ GitHub Actions 检测到代码改动
 | 层 | 组件 |
 |---|---|
 | 后端 | Spring Boot 3.2.5 · Java 17 · MyBatis-Plus 3.5.7 |
+| API 文档 | Knife4j 4.5.0（OpenAPI 3，http://localhost:8080/doc.html） |
 | 数据库 | MySQL 8.4（localhost:3306，`db_takeout`） |
 | 缓存 | Redis（localhost:6379） |
-| 前端 H5 | Vue 3 + Vite + Vant 4（移动端，port 3001） |
-| 前端商家端 | Vue 3 + Vite + Element Plus（port 3002） |
-| 前端管理后台 | Vue 3 + Vite + Element Plus（port 3003） |
+| 前端 H5 | Vue 3 + Vite 5 + Vant 4（移动端，port 3001） |
+| 前端商家端 | Vue 3 + Vite 5 + Element Plus（port 3002） |
+| 前端管理后台 | Vue 3 + Vite 5 + Element Plus（port 3003） |
 | 认证 | JWT（JJWT 0.12.5），手机号 + 短信验证码 |
 | ID 生成 | Snowflake（序列化为 String 防 JS 精度丢失） |

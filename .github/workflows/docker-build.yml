@@ -15,14 +15,10 @@ on:
   workflow_dispatch:          # 支持手动触发
     inputs:
       clean:
-        description: 'Clean rebuild — clear cache and rebuild from scratch'
+        description: 'Clean rebuild — clear cache and build from scratch'
         required: false
         default: false
         type: boolean
-
-permissions:
-  contents: read
-  packages: write            # 推送到 GHCR 必须
 
 jobs:
   backend:
@@ -30,23 +26,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 把 GitHub 用户名转为小写（Docker tag 必须小写）
-      - name: Set owner lowercase
-        run: echo "LOWER_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
-
-      - name: Log in to GHCR
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Prune BuildKit cache (clean rebuild)
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.clean == 'true' }}
-        run: docker buildx prune -f --all
 
       - name: Build & push backend
         uses: docker/build-push-action@v6
@@ -60,30 +47,22 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: |
-            ghcr.io/${{ env.LOWER_OWNER }}/takeout-backend:latest
-            ghcr.io/${{ env.LOWER_OWNER }}/takeout-backend:${{ github.sha }}
+            cwtchtome/takeout-backend:latest
+            cwtchtome/takeout-backend:${{ github.sha }}
 
   h5:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set owner lowercase
-        run: echo "LOWER_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
-
-      - name: Log in to GHCR
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Prune BuildKit cache (clean rebuild)
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.clean == 'true' }}
-        run: docker buildx prune -f --all
 
       - name: Build & push H5
         uses: docker/build-push-action@v6
@@ -97,30 +76,22 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: |
-            ghcr.io/${{ env.LOWER_OWNER }}/takeout-h5:latest
-            ghcr.io/${{ env.LOWER_OWNER }}/takeout-h5:${{ github.sha }}
+            cwtchtome/takeout-h5:latest
+            cwtchtome/takeout-h5:${{ github.sha }}
 
   merchant-web:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set owner lowercase
-        run: echo "LOWER_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
-
-      - name: Log in to GHCR
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Prune BuildKit cache (clean rebuild)
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.clean == 'true' }}
-        run: docker buildx prune -f --all
 
       - name: Build & push merchant-web
         uses: docker/build-push-action@v6
@@ -134,30 +105,22 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: |
-            ghcr.io/${{ env.LOWER_OWNER }}/takeout-merchant:latest
-            ghcr.io/${{ env.LOWER_OWNER }}/takeout-merchant:${{ github.sha }}
+            cwtchtome/takeout-merchant:latest
+            cwtchtome/takeout-merchant:${{ github.sha }}
 
   admin-web:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set owner lowercase
-        run: echo "LOWER_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
-
-      - name: Log in to GHCR
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Prune BuildKit cache (clean rebuild)
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.clean == 'true' }}
-        run: docker buildx prune -f --all
 
       - name: Build & push admin-web
         uses: docker/build-push-action@v6
@@ -171,5 +134,5 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: |
-            ghcr.io/${{ env.LOWER_OWNER }}/takeout-admin:latest
-            ghcr.io/${{ env.LOWER_OWNER }}/takeout-admin:${{ github.sha }}
+            cwtchtome/takeout-admin:latest
+            cwtchtome/takeout-admin:${{ github.sha }}
