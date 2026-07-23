@@ -65,6 +65,7 @@ const handleLogin = async () => {
       return
     }
     localStorage.setItem('admin_token', res.data.accessToken)
+    if (res.data.refreshToken) localStorage.setItem('admin_refresh_token', res.data.refreshToken)
     localStorage.setItem('admin_userId', res.data.userInfo.id)
     ElMessage.success('登录成功')
     router.push('/')

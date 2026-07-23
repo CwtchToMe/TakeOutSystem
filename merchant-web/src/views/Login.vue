@@ -51,6 +51,7 @@ const handleLogin = async () => {
   try {
     const res = await login(form.value.phone, form.value.code)
     localStorage.setItem('merchant_token', res.data.accessToken)
+    if (res.data.refreshToken) localStorage.setItem('merchant_refresh_token', res.data.refreshToken)
     localStorage.setItem('merchant_userId', res.data.userInfo?.id)
     ElMessage.success('登录成功')
     router.push('/orders')

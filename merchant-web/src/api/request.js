@@ -7,6 +7,35 @@ const request = axios.create({
   timeout: 10000
 })
 
+// ---- Token 刷新状态 ----
+let _refreshing = false
+let _refreshSubscribers = []
+
+function onRefreshed(newToken) {
+  _refreshSubscribers.forEach(cb => cb(newToken))
+  _refreshSubscribers = []
+}
+
+function addRefreshSubscriber(cb) {
+  _refreshSubscribers.push(cb)
+}
+
+async function tryRefreshToken() {
+  const rt = localStorage.getItem('merchant_refresh_token')
+  if (!rt) return null
+  try {
+    const resp = await axios.post('/api/auth/refresh', { refreshToken: rt })
+    if (resp.data?.code === 200 && resp.data?.data) {
+      const newToken = resp.data.data
+      localStorage.setItem('merchant_token', newToken)
+      return newToken
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
 request.interceptors.request.use(config => {
   const token = localStorage.getItem('merchant_token')
   if (token) config.headers['Authorization'] = `Bearer ${token}`
@@ -17,11 +46,35 @@ request.interceptors.response.use(
   response => {
     const data = response.data
     if (data.code !== 200) {
-      ElMessage.error(data.message || '请求失败')
       if (data.code === 401) {
-        localStorage.removeItem('merchant_token')
-        router.push('/login')
+        if (!_refreshing) {
+          _refreshing = true
+          return tryRefreshToken().then(newToken => {
+            _refreshing = false
+            if (newToken) {
+              onRefreshed(newToken)
+              const newConfig = { ...response.config }
+              newConfig.headers['Authorization'] = `Bearer ${newToken}`
+              return request(newConfig)
+            }
+            clearAuthAndRedirect()
+            return Promise.reject(new Error(data.message))
+          }).catch(() => {
+            _refreshing = false
+            _refreshSubscribers = []
+            clearAuthAndRedirect()
+            return Promise.reject(new Error(data.message))
+          })
+        } else {
+          return new Promise(resolve => {
+            addRefreshSubscriber(newToken => {
+              response.config.headers['Authorization'] = `Bearer ${newToken}`
+              resolve(request(response.config))
+            })
+          })
+        }
       }
+      ElMessage.error(data.message || '请求失败')
       return Promise.reject(new Error(data.message))
     }
     return data
@@ -30,8 +83,32 @@ request.interceptors.response.use(
     if (error.response) {
       const status = error.response.status
       if (status === 401) {
-        localStorage.removeItem('merchant_token')
-        router.push('/login')
+        if (!_refreshing) {
+          _refreshing = true
+          return tryRefreshToken().then(newToken => {
+            _refreshing = false
+            if (newToken) {
+              onRefreshed(newToken)
+              const newConfig = { ...error.config }
+              newConfig.headers['Authorization'] = `Bearer ${newToken}`
+              return request(newConfig)
+            }
+            clearAuthAndRedirect()
+            return Promise.reject(error)
+          }).catch(() => {
+            _refreshing = false
+            _refreshSubscribers = []
+            clearAuthAndRedirect()
+            return Promise.reject(error)
+          })
+        } else {
+          return new Promise(resolve => {
+            addRefreshSubscriber(newToken => {
+              error.config.headers['Authorization'] = `Bearer ${newToken}`
+              resolve(request(error.config))
+            })
+          })
+        }
       } else if (status >= 500) {
         ElMessage.error(error.response.data?.message || '服务器异常，请检查控制台服务状态')
       } else {
@@ -45,5 +122,11 @@ request.interceptors.response.use(
     return Promise.reject(error)
   }
 )
+
+function clearAuthAndRedirect() {
+  localStorage.removeItem('merchant_token')
+  localStorage.removeItem('merchant_refresh_token')
+  if (router.currentRoute.value.path !== '/login') router.push('/login')
+}
 
 export default request

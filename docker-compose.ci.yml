@@ -1,0 +1,99 @@
+# =====================================================================
+# docker-compose.ci.yml — CI 环境专用编排
+#
+# 与 docker-compose.yml 的区别：
+#   1. 直接拉取 Docker Hub 镜像（不从源码构建），速度更快
+#   2. 端口映射显式声明 host:container（nginx 容器内监听 80）
+#   3. 后端启用 Flyway 自动建表，无需手动执行 init.sql
+#   4. 测试数据通过 V2__seed_test_data.sql 自动注入
+#
+# 使用方式：
+#   docker compose -f docker-compose.ci.yml up -d
+#   docker compose -f docker-compose.ci.yml down
+# =====================================================================
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: takeout-mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: db_takeout
+      TZ: Asia/Shanghai
+    volumes:
+      - mysql-ci-data:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: takeout-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    image: cwtchtome/takeout-backend:latest
+    container_name: takeout-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      TZ: Asia/Shanghai
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-sf", "http://localhost:8080/api/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  h5:
+    image: cwtchtome/takeout-h5:latest
+    container_name: takeout-h5
+    restart: unless-stopped
+    ports:
+      - "3001:80"           # host:3001 ← 容器内 nginx 监听 80
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  merchant-web:
+    image: cwtchtome/takeout-merchant:latest
+    container_name: takeout-merchant
+    restart: unless-stopped
+    ports:
+      - "3002:80"           # host:3002 ← 容器内 nginx 监听 80
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  admin-web:
+    image: cwtchtome/takeout-admin:latest
+    container_name: takeout-admin
+    restart: unless-stopped
+    ports:
+      - "3003:80"           # host:3003 ← 容器内 nginx 监听 80
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  mysql-ci-data:

@@ -160,7 +160,7 @@ const handleReceive = async (coupon) => {
     showToast({ message: '领取成功！', icon: 'checked' })
     if (myCoupons.value.length) loadMy()
   } catch (e) {
-    const msg = e?.response?.data?.msg || '领取失败'
+    const msg = e?.response?.data?.message || e?.message || '领取失败'
     showToast(msg)
   } finally {
     receiving[coupon.id] = false

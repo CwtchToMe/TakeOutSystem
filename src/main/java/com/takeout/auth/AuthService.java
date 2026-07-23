@@ -113,6 +113,13 @@ public class AuthService {
             throw new BusinessException(ResultCode.UNAUTHORIZED, "refreshToken 已失效，请重新登录");
         }
 
+        // 刷新时检查用户状态（防止禁用用户长期持有有效 token）
+        User user = userService.getById(userId);
+        if (user == null || Integer.valueOf(0).equals(user.getStatus())) {
+            redisUtil.delete(TOKEN_KEY + userId);
+            throw new BusinessException(ResultCode.FORBIDDEN, "账号已被禁用，请重新登录");
+        }
+
         UserRole role = JwtUtil.getUserRole(refreshToken, jwtProperties.getSecret());
         if (role == null) role = UserRole.CUSTOMER;
 

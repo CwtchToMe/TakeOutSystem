@@ -55,7 +55,7 @@ services:
     container_name: takeout-h5
     restart: unless-stopped
     ports:
-      - "3001:80"
+      - "3001:80"           # host:3001 → nginx(容器内监听80)
     depends_on:
       - backend
 
@@ -67,7 +67,7 @@ services:
     container_name: takeout-merchant
     restart: unless-stopped
     ports:
-      - "3002:80"
+      - "3002:80"           # host:3002 → nginx(容器内监听80)
     depends_on:
       - backend
 
@@ -79,7 +79,7 @@ services:
     container_name: takeout-admin
     restart: unless-stopped
     ports:
-      - "3003:80"
+      - "3003:80"           # host:3003 → nginx(容器内监听80)
     depends_on:
       - backend
 

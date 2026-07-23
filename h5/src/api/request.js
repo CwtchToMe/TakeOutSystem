@@ -7,6 +7,36 @@ const request = axios.create({
   timeout: 15000
 })
 
+// ---- Token 刷新状态 ----
+let _refreshing = false
+let _refreshSubscribers = []
+
+function onRefreshed(newToken) {
+  _refreshSubscribers.forEach(cb => cb(newToken))
+  _refreshSubscribers = []
+}
+
+function addRefreshSubscriber(cb) {
+  _refreshSubscribers.push(cb)
+}
+
+// 尝试用 refreshToken 换取新 accessToken
+async function tryRefreshToken() {
+  const rt = localStorage.getItem('h5_refresh_token')
+  if (!rt) return null
+  try {
+    const resp = await axios.post('/api/auth/refresh', { refreshToken: rt })
+    if (resp.data?.code === 200 && resp.data?.data) {
+      const newToken = resp.data.data
+      localStorage.setItem('h5_token', newToken)
+      return newToken
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
 // 请求拦截：附加 JWT token
 request.interceptors.request.use(config => {
   const token = localStorage.getItem('h5_token')
@@ -16,44 +46,42 @@ request.interceptors.request.use(config => {
   return config
 })
 
-// 清除 auth 并跳登录（防重复调用）
-let _unauthorizedLock = false
-let _lockTimer = null
-function handleUnauthorized() {
-  if (_unauthorizedLock) return
-  _unauthorizedLock = true
-  localStorage.removeItem('h5_token')
-  localStorage.removeItem('h5_userId')
-  localStorage.removeItem('h5_nickname')
-  // 安全超时：3秒后无论如何都重置锁，防止锁被永久卡住
-  if (_lockTimer) clearTimeout(_lockTimer)
-  _lockTimer = setTimeout(() => { _unauthorizedLock = false }, 3000)
-  if (router.currentRoute.value.path !== '/login') {
-    showToast({ message: '登录已过期，请重新登录', position: 'top' })
-    router.push('/login').then(() => {
-      _unauthorizedLock = false
-      if (_lockTimer) { clearTimeout(_lockTimer); _lockTimer = null }
-    }).catch(() => {
-      // 导航被取消（如已在登录页），安全重置锁
-      _unauthorizedLock = false
-      if (_lockTimer) { clearTimeout(_lockTimer); _lockTimer = null }
-    })
-  } else {
-    _unauthorizedLock = false
-    if (_lockTimer) { clearTimeout(_lockTimer); _lockTimer = null }
-  }
-}
-
-// 响应拦截
+// 响应拦截（含自动刷新 token 逻辑）
 request.interceptors.response.use(
   response => {
     const data = response.data
-    // 业务层返回非 200
     if (data.code !== undefined && data.code !== 200) {
-      // 业务 401：token 失效
       if (data.code === 401) {
-        handleUnauthorized()
-        return Promise.reject(new Error(data.message || '登录已过期'))
+        // 尝试刷新 token
+        if (!_refreshing) {
+          _refreshing = true
+          return tryRefreshToken().then(newToken => {
+            _refreshing = false
+            if (newToken) {
+              onRefreshed(newToken)
+              // 重试原始请求
+              const newConfig = { ...response.config }
+              newConfig.headers['Authorization'] = `Bearer ${newToken}`
+              return request(newConfig)
+            }
+            // 刷新失败 → 登出
+            clearAuthAndRedirect()
+            return Promise.reject(new Error(data.message || '登录已过期'))
+          }).catch(() => {
+            _refreshing = false
+            _refreshSubscribers = []
+            clearAuthAndRedirect()
+            return Promise.reject(new Error(data.message || '登录已过期'))
+          })
+        } else {
+          // 正在刷新中，排队等待
+          return new Promise(resolve => {
+            addRefreshSubscriber(newToken => {
+              response.config.headers['Authorization'] = `Bearer ${newToken}`
+              resolve(request(response.config))
+            })
+          })
+        }
       }
       showToast(data.message || '请求失败')
       return Promise.reject(new Error(data.message))
@@ -63,27 +91,47 @@ request.interceptors.response.use(
   error => {
     if (error.response) {
       const status = error.response.status
-      // HTTP 401：网关鉴权失败
+      // HTTP 401：尝试刷新 token
       if (status === 401) {
-        handleUnauthorized()
-        return Promise.reject(error)
+        if (!_refreshing) {
+          _refreshing = true
+          return tryRefreshToken().then(newToken => {
+            _refreshing = false
+            if (newToken) {
+              onRefreshed(newToken)
+              const newConfig = { ...error.config }
+              newConfig.headers['Authorization'] = `Bearer ${newToken}`
+              return request(newConfig)
+            }
+            clearAuthAndRedirect()
+            return Promise.reject(error)
+          }).catch(() => {
+            _refreshing = false
+            _refreshSubscribers = []
+            clearAuthAndRedirect()
+            return Promise.reject(error)
+          })
+        } else {
+          return new Promise(resolve => {
+            addRefreshSubscriber(newToken => {
+              error.config.headers['Authorization'] = `Bearer ${newToken}`
+              resolve(request(error.config))
+            })
+          })
+        }
       }
-      // HTTP 403
       if (status === 403) {
         showToast('没有操作权限')
         return Promise.reject(error)
       }
-      // HTTP 404
       if (status === 404) {
         showToast('接口不存在，请联系管理员')
         return Promise.reject(error)
       }
-      // HTTP 500
       if (status >= 500) {
         showToast({ message: error.response.data?.message || '服务器异常，请稍后重试', duration: 3000 })
         return Promise.reject(error)
       }
-      // 其他 HTTP 错误：优先使用后端返回的 message
       const msg = error.response.data?.message || `请求失败(${status})`
       showToast(msg)
     } else if (error.code === 'ECONNABORTED') {
@@ -94,5 +142,16 @@ request.interceptors.response.use(
     return Promise.reject(error)
   }
 )
+
+function clearAuthAndRedirect() {
+  localStorage.removeItem('h5_token')
+  localStorage.removeItem('h5_refresh_token')
+  localStorage.removeItem('h5_userId')
+  localStorage.removeItem('h5_nickname')
+  if (router.currentRoute.value.path !== '/login') {
+    showToast({ message: '登录已过期，请重新登录', position: 'top' })
+    router.push('/login')
+  }
+}
 
 export default request

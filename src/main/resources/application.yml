@@ -5,6 +5,13 @@ spring:
   application:
     name: takeout-app
 
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
+    out-of-order: false
+
   datasource:
     url: jdbc:mysql://localhost:3306/db_takeout?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
     username: root
@@ -39,7 +46,7 @@ mybatis-plus:
 
 jwt:
   secret: takeout-system-jwt-secret-key-2024-very-long
-  access-token-expire: 7200000    # 2h
+  access-token-expire: 604800000   # 7d（原 2h，延长以减少 SPA 重定向到登录页）
   refresh-token-expire: 604800000 # 7d
 
 logging:

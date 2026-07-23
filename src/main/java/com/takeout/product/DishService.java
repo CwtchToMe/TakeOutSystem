@@ -66,6 +66,9 @@ public class DishService {
     @Transactional(rollbackFor = Exception.class)
     public Long add(Long userId, DishRequest request) {
         checkOwner(userId, request.merchantId());
+        if (request.price().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "菜品价格必须大于 0");
+        }
         Dish dish = new Dish();
         dish.setMerchantId(request.merchantId());
         dish.setCategoryId(request.categoryId());
@@ -95,6 +98,9 @@ public class DishService {
     @Transactional(rollbackFor = Exception.class)
     public void update(Long userId, Long dishId, DishRequest request) {
         Dish dish = getDishAndCheckOwner(userId, dishId);
+        if (request.price() != null && request.price().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "菜品价格必须大于 0");
+        }
         if (request.categoryId() != null) dish.setCategoryId(request.categoryId());
         if (StringUtils.hasText(request.name())) dish.setName(request.name());
         if (request.imageUrl() != null) dish.setImageUrl(request.imageUrl());

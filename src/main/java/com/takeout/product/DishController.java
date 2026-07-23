@@ -37,7 +37,7 @@ public class DishController {
 
     @Operation(summary = "修改菜品", description = "只能修改自己店铺的菜品")
     @PutMapping("/{id}")
-    public Result<Void> update(@PathVariable Long id, @RequestBody DishRequest request) {
+    public Result<Void> update(@PathVariable Long id, @Valid @RequestBody DishRequest request) {
         dishService.update(UserContext.requireUserId(), id, request);
         return Result.success();
     }
