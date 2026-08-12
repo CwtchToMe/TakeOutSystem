@@ -272,7 +272,32 @@ Redis 绑定 `127.0.0.1:6379`，旧的 `Check-Port` 只匹配 `0.0.0.0:port`。
 
 ---
 
-## 五、业务逻辑
+### 坑21：GHCR 命名空间损坏 — MANIFEST_UNKNOWN 拉取失败
+
+**症状：** `docker pull ghcr.io/cwtochtome/*` 全部报 `MANIFEST_UNKNOWN` / `not found`。  
+GitHub API 能看到 package 元数据和 tag 记录，但镜像层实际不存在。CI workflow 显示全绿但有欺骗性。
+
+**根因：** CwtchToMe 用户的 GHCR 命名空间损坏。本地 `docker push` 报 `not_found: owner not found`。  
+GHCR 存储层（blobs/manifests）不可写，但 `GITHUB_TOKEN` 仍能写入 metadata（API 层），所以 CI 显示绿色。
+
+**排查确认方法：**
+```powershell
+# 本地 push 一个测试镜像，如果报 owner not found 就是用户级问题
+docker pull alpine:latest
+docker tag alpine:latest ghcr.io/cwtochtome/test-fresh-image-v1
+docker push ghcr.io/cwtochtome/test-fresh-image-v1
+```
+
+**修复（需要在 GitHub 侧操作）：**
+1. 打开 https://github.com/settings/packages — 确认是否已接受 GitHub Packages 服务条款
+2. 检查有无配额/账单问题
+3. 联系 GitHub Support 修复命名空间
+
+**当前缓解措施：** `docker-compose.yml` 已加 `pull_policy: build`，`docker compose up -d --build` 直接从源码构建。
+
+---
+
+## 六、业务逻辑
 
 ### 坑18：status=4（待取餐）从未被设置
 

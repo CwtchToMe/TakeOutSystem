@@ -104,6 +104,6 @@ description: 与用户协作的行为规则：权限、验证方式、响应风�
 | merchant-web 端口 | 3002 |
 | admin-web 端口 | 3003 |
 | 测试商家坐标 | 北京 116.39, 39.952（radius=20000） |
-| 日志位置 | `C:\workD\code\TakeoutSystem\logs\takeout-out.log` |
+| 日志位置 | `logs\takeout-out.log`（项目根目录下） |
 | API 文档 | http://localhost:8080/doc.html |
-| 管理面板 | `C:\workD\software\console.ps1` |
+| 管理面板 | `scripts\console.ps1` |

@@ -39,6 +39,7 @@ API 文档：http://localhost:8080/doc.html
 | **检查 UI 显示问题** | `audit-ui` | `.claude/skills/audit-ui/SKILL.md` |
 | **验收前清测试数据** | `db-reset` | `.claude/skills/db-reset/SKILL.md` |
 | **端到端全链路验收** | `verify-flows` | `.claude/skills/verify-flows/SKILL.md` |
+| **CI/CD / 部署 / 镜像问题** | `ci-cd-pipeline` | `.claude/skills/ci-cd-pipeline/SKILL.md` |
 
 ### 调度逻辑
 
